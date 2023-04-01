@@ -42,18 +42,18 @@ fn shape_fallback(
     let mut missing = Vec::new();
     let mut glyphs = Vec::with_capacity(glyph_infos.len());
     for (info, pos) in glyph_infos.iter().zip(glyph_positions.iter()) {
-        let x_advance = pos.x_advance as f32 / font_scale;
-        let y_advance = pos.y_advance as f32 / font_scale;
-        let x_offset = pos.x_offset as f32 / font_scale;
-        let y_offset = pos.y_offset as f32 / font_scale;
-
         let start_glyph = start_run + info.cluster as usize;
+        let attrs = attrs_list.get_span(start_glyph);
+
+        let x_advance = pos.x_advance as f32 / font_scale * attrs.scaling;
+        let y_advance = pos.y_advance as f32 / font_scale * attrs.scaling;
+        let x_offset = pos.x_offset as f32 / font_scale * attrs.scaling;
+        let y_offset = pos.y_offset as f32 / font_scale * attrs.scaling;
 
         if info.glyph_id == 0 {
             missing.push(start_glyph);
         }
 
-        let attrs = attrs_list.get_span(start_glyph);
         glyphs.push(ShapeGlyph {
             start: start_glyph,
             end: end_run, // Set later

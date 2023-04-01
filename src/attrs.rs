@@ -5,7 +5,7 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use core::ops::Range;
+use core::{hash::Hash, ops::Range};
 
 pub use fontdb::{Family, Stretch, Style, Weight};
 use rangemap::RangeMap;
@@ -88,7 +88,7 @@ impl FamilyOwned {
 }
 
 /// Text attributes
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub struct Attrs<'a> {
     //TODO: should this be an option?
     pub color_opt: Option<Color>,
@@ -96,7 +96,54 @@ pub struct Attrs<'a> {
     pub stretch: Stretch,
     pub style: Style,
     pub weight: Weight,
+    pub scaling: f32,
     pub metadata: usize,
+}
+
+impl PartialEq for Attrs<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        // compile error if new fields are added
+        let Self {
+            color_opt,
+            family,
+            stretch,
+            style,
+            weight,
+            scaling,
+            metadata,
+        } = self;
+
+        *color_opt == other.color_opt
+            && *family == other.family
+            && *stretch == other.stretch
+            && *style == other.style
+            && *weight == other.weight
+            && f32::total_cmp(scaling, &other.scaling).is_eq()
+            && *metadata == other.metadata
+    }
+}
+impl Eq for Attrs<'_> {}
+impl Hash for Attrs<'_> {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        // compile error if new fields are added
+        let Self {
+            color_opt,
+            family,
+            stretch,
+            style,
+            weight,
+            scaling,
+            metadata,
+        } = self;
+
+        color_opt.hash(state);
+        family.hash(state);
+        stretch.hash(state);
+        style.hash(state);
+        weight.hash(state);
+        scaling.to_bits().hash(state);
+        metadata.hash(state);
+    }
 }
 
 impl<'a> Attrs<'a> {
@@ -110,6 +157,7 @@ impl<'a> Attrs<'a> {
             stretch: Stretch::Normal,
             style: Style::Normal,
             weight: Weight::NORMAL,
+            scaling: 1.0,
             metadata: 0,
         }
     }
@@ -144,6 +192,12 @@ impl<'a> Attrs<'a> {
         self
     }
 
+    /// Set scaling
+    pub fn scaling(mut self, scaling: f32) -> Self {
+        self.scaling = scaling;
+        self
+    }
+
     /// Set metadata
     pub fn metadata(mut self, metadata: usize) -> Self {
         self.metadata = metadata;
@@ -165,11 +219,12 @@ impl<'a> Attrs<'a> {
             && self.stretch == other.stretch
             && self.style == other.style
             && self.weight == other.weight
+            && self.scaling.total_cmp(&other.scaling).is_eq()
     }
 }
 
 /// An owned version of [`Attrs`]
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct AttrsOwned {
     //TODO: should this be an option?
     pub color_opt: Option<Color>,
@@ -177,6 +232,7 @@ pub struct AttrsOwned {
     pub stretch: Stretch,
     pub style: Style,
     pub weight: Weight,
+    pub scaling: f32,
     pub metadata: usize,
 }
 
@@ -188,6 +244,7 @@ impl AttrsOwned {
             stretch: attrs.stretch,
             style: attrs.style,
             weight: attrs.weight,
+            scaling: attrs.scaling,
             metadata: attrs.metadata,
         }
     }
@@ -199,8 +256,55 @@ impl AttrsOwned {
             stretch: self.stretch,
             style: self.style,
             weight: self.weight,
+            scaling: self.scaling,
             metadata: self.metadata,
         }
+    }
+}
+
+impl PartialEq for AttrsOwned {
+    fn eq(&self, other: &Self) -> bool {
+        // compile error if new fields are added
+        let Self {
+            color_opt,
+            family_owned,
+            stretch,
+            style,
+            weight,
+            scaling,
+            metadata,
+        } = self;
+
+        *color_opt == other.color_opt
+            && *family_owned == other.family_owned
+            && *stretch == other.stretch
+            && *style == other.style
+            && *weight == other.weight
+            && f32::total_cmp(scaling, &other.scaling).is_eq()
+            && *metadata == other.metadata
+    }
+}
+impl Eq for AttrsOwned {}
+impl Hash for AttrsOwned {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        // compile error if new fields are added
+        let Self {
+            color_opt,
+            family_owned,
+            stretch,
+            style,
+            weight,
+            scaling,
+            metadata,
+        } = self;
+
+        color_opt.hash(state);
+        family_owned.hash(state);
+        stretch.hash(state);
+        style.hash(state);
+        weight.hash(state);
+        scaling.to_bits().hash(state);
+        metadata.hash(state);
     }
 }
 
