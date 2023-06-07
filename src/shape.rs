@@ -44,11 +44,12 @@ fn shape_fallback(
     for (info, pos) in glyph_infos.iter().zip(glyph_positions.iter()) {
         let start_glyph = start_run + info.cluster as usize;
         let attrs = attrs_list.get_span(start_glyph);
+        let font_scale = attrs.scaling / font_scale;
 
-        let x_advance = pos.x_advance as f32 / font_scale * attrs.scaling;
-        let y_advance = pos.y_advance as f32 / font_scale * attrs.scaling;
-        let x_offset = pos.x_offset as f32 / font_scale * attrs.scaling;
-        let y_offset = pos.y_offset as f32 / font_scale * attrs.scaling;
+        let x_advance = pos.x_advance as f32 * font_scale;
+        let y_advance = pos.y_advance as f32 * font_scale;
+        let x_offset = pos.x_offset as f32 * font_scale;
+        let y_offset = pos.y_offset as f32 * font_scale;
 
         if info.glyph_id == 0 {
             missing.push(start_glyph);
@@ -367,9 +368,10 @@ impl ShapeSpan {
         for (end_lb, _) in unicode_linebreak::linebreaks(span) {
             let mut start_lb = end_lb;
             for (i, c) in span[start_word..end_lb].char_indices() {
+                const NBSP: char = '\u{A0}';
                 if start_word + i == end_lb {
                     break;
-                } else if c.is_whitespace() {
+                } else if c.is_whitespace() && c != NBSP {
                     start_lb = start_word + i;
                     break;
                 }
@@ -724,25 +726,18 @@ impl ShapeLine {
                                     number_of_blanks = number_of_blanks.saturating_sub(1);
                                 }
                             }
-                            if let Some(width) = trailing_space_width {
-                                add_to_visual_line(
-                                    &mut current_visual_line,
-                                    span_index,
-                                    (i + 2, 0),
-                                    fitting_start,
-                                    word_range_width - width,
-                                    number_of_blanks,
-                                );
-                            } else {
-                                add_to_visual_line(
-                                    &mut current_visual_line,
-                                    span_index,
-                                    (i + 1, 0),
-                                    fitting_start,
-                                    word_range_width,
-                                    number_of_blanks,
-                                );
-                            }
+                            let (j, line_width) = match trailing_space_width {
+                                Some(width) => (2, word_range_width - width),
+                                None => (1, word_range_width),
+                            };
+                            add_to_visual_line(
+                                &mut current_visual_line,
+                                span_index,
+                                (i + j, 0),
+                                fitting_start,
+                                line_width,
+                                number_of_blanks,
+                            );
                             visual_lines.push(current_visual_line);
                             current_visual_line = VisualLine::default();
 
